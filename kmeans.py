@@ -5,12 +5,7 @@ import os as os
 
 def main():
     points = get_points("points.txt")
-    for p in points:
-        print(p)
-    print("--SCALE--")
-    for p in points:
-        p.scale(2)
-        print(p)
+    centroids = k_means(3, points)
 
 
 # centroids
@@ -41,6 +36,9 @@ class Point:
     def __str__(self) -> str:
         return f"({self.x}, {self.y})"
 
+    def eq(self, other: "Point") -> bool:
+        return self.x == other.x and self.y == other.y
+
 
 def get_points(file_path: str) -> list[Point]:
     points = []
@@ -68,37 +66,91 @@ class Centroid:
         for p in self.points:
             print(str(p))
 
-    def variance(self) -> float:
-        # compute the variance / intra cluster distance
-        return 0.0
+    def eq(self, other: "Centroid") -> bool:
+        if len(self.points) != len(other.points):
+            return False
+        if not self.center.eq(other.center):
+            return False
+        # assume all points are equal first
+        pointseq = True
+        for sp in self.points:
+            pointeq = False
+            for op in other.points:
+                if op.eq(sp):
+                    pointeq = True
+            pointseq = pointseq and pointeq
+        # return true if center and points are all equal
+        return pointseq
+
+    def __str__(self) -> str:
+        sb = ""
+        sb += str(self.center)
+        sb += ", ["
+        for index, p in enumerate(self.points):
+            if index != len(self.points) - 1:
+                sb += str(p) + ", "
+            else:
+                sb += str(p)
+        sb += "]"
+        return sb
+
+    @staticmethod
+    def equals(first: list["Centroid"], second: list["Centroid"]) -> bool:
+        if len(first) != len(second):
+            return False
+        listeq = True
+        for c1 in first:
+            elemeq = False
+            for c2 in second:
+                if c1.eq(c2):
+                    elemeq = True
+            listeq = listeq and elemeq
+        return listeq
 
 
 def init_random_centroids(k: int, points: list[Point]) -> list[Centroid]:
     centroids = []
+    rpoints = points.copy()
     for _ in range(k):
-        ridx = rand.randint(0, len(points) - 1)
+        ridx = rand.randint(0, len(rpoints) - 1)
+        randp = rpoints.pop(ridx)
         # init with no points but randomly picked one
-        centroid = Centroid([], points[ridx])
+        centroid = Centroid([randp], randp)
         centroids.append(centroid)
+    print_centroids(centroids)
     return centroids
+
+
+def print_centroids(centroids: list[Centroid]):
+    num = 0
+    for c in centroids:
+        print(f"{num} : {str(c)}")
+        num += 1
 
 
 def k_means(k: int, points: list[Point]) -> list[Centroid]:
     centroids = init_random_centroids(k, points)
     # create iterate loop where we assign clusers, then update cluster from assignment (mutual recursion step)
     converged = False
+    iter = 1
     while converged == False:
         # first  assign new points
-        assign_points(centroids, points)
-        # recalc the center of each centroid
         new_centroids = update_centers(centroids)
-        if new_centroids == centroids:
+        assign_points(new_centroids, points)
+        if Centroid.equals(centroids, new_centroids):
             converged = True
         else:
+            print(f"--ITERATION {iter}--")
+            print("--CENTROIDS--")
+            print_centroids(centroids)
+            print("---NEW CENTROIDS--")
+            print_centroids(new_centroids)
+            iter += 1
             centroids = new_centroids
     return centroids
 
 
+# expectation step
 def assign_points(centroids: list[Centroid], points: list[Point]):
     for p in points:
         min_distance = 1 << 32
@@ -114,13 +166,14 @@ def assign_points(centroids: list[Centroid], points: list[Point]):
         centroids[min_index].points.append(p)
 
 
+# maximization step
 def update_centers(centroids: list[Centroid]) -> list[Centroid]:
     new_centroids = []
     for c in centroids:
         new_center = Point(0, 0)
-        n = len(c.points)
         for p in c.points:
             new_center = Point.add(new_center, p)
+        n = len(c.points)
         new_center.scale(1 / n)
         new_centroid = Centroid([], new_center)
         new_centroids.append(new_centroid)
