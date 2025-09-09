@@ -60,12 +60,6 @@ class Centroid:
         self.points = points
         self.center = center
 
-    def display(self):
-        print("Center:", str(self.center))
-        print("Points =>")
-        for p in self.points:
-            print(str(p))
-
     def eq(self, other: "Centroid") -> bool:
         if len(self.points) != len(other.points):
             return False
@@ -115,7 +109,7 @@ def init_random_centroids(k: int, points: list[Point]) -> list[Centroid]:
         ridx = rand.randint(0, len(rpoints) - 1)
         randp = rpoints.pop(ridx)
         # init with no points but randomly picked one
-        centroid = Centroid([randp], randp)
+        centroid = Centroid([], randp)
         centroids.append(centroid)
     print_centroids(centroids)
     return centroids
@@ -134,24 +128,27 @@ def k_means(k: int, points: list[Point]) -> list[Centroid]:
     converged = False
     iter = 1
     while converged == False:
-        # first  assign new points
+        # get new center
+        assign_points(centroids, points)
         new_centroids = update_centers(centroids)
-        assign_points(new_centroids, points)
+        # assign points under this new center
         if Centroid.equals(centroids, new_centroids):
             converged = True
-        else:
-            print(f"--ITERATION {iter}--")
-            print("--CENTROIDS--")
-            print_centroids(centroids)
-            print("---NEW CENTROIDS--")
-            print_centroids(new_centroids)
-            iter += 1
-            centroids = new_centroids
+        print(f"--ITERATION {iter}--")
+        print("--CENTROIDS--")
+        print_centroids(centroids)
+        print("---NEW CENTROIDS--")
+        print_centroids(new_centroids)
+        centroids = new_centroids
+        iter += 1
     return centroids
 
 
 # expectation step
 def assign_points(centroids: list[Centroid], points: list[Point]):
+    for c in centroids:
+        c.points = []
+
     for p in points:
         min_distance = 1 << 32
         min_index = -1
@@ -175,7 +172,7 @@ def update_centers(centroids: list[Centroid]) -> list[Centroid]:
             new_center = Point.add(new_center, p)
         n = len(c.points)
         new_center.scale(1 / n)
-        new_centroid = Centroid([], new_center)
+        new_centroid = Centroid(c.points, new_center)
         new_centroids.append(new_centroid)
     return new_centroids
 
